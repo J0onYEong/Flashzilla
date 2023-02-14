@@ -10,10 +10,11 @@ import SwiftUI
 
 struct CardView: View {
     @Environment(\.accessibilityDifferentiateWithoutColor) var differentWithoutColor
-    
+    @Environment(\.accessibilityVoiceOverEnabled) var isVoiceOverEnabled
     var card: Card
     @State private var isShowingAnswer = false
     @State private var offset = CGSize.zero
+    @State private var feedback = UINotificationFeedbackGenerator()
     
     var remove: (() -> ())? = nil
     
@@ -25,13 +26,19 @@ struct CardView: View {
                 .background(RoundedRectangle(cornerRadius: 25, style: .continuous)
                     .fill(differentWithoutColor ? .white : offset.width < 0 ? .red : .green))
             VStack {
-                Text(card.question)
-                    .font(.largeTitle)
-                    .foregroundColor(.black)
-                if isShowingAnswer {
-                    Text(card.answer)
-                        .font(.title)
-                        .foregroundColor(.gray)
+                if isVoiceOverEnabled {
+                    Text(isShowingAnswer ? card.answer : card.question)
+                        .font(.largeTitle)
+                        .foregroundColor(.black)
+                } else {
+                    Text(card.question)
+                        .font(.largeTitle)
+                        .foregroundColor(.black)
+                    if isShowingAnswer {
+                        Text(card.answer)
+                            .font(.title)
+                            .foregroundColor(.gray)
+                    }
                 }
             }
             .padding(20)
@@ -44,16 +51,20 @@ struct CardView: View {
         .gesture(
             DragGesture()
                 .onChanged { value in
+                    feedback.prepare()
                     offset = value.translation
                 }
                 .onEnded { _ in
                     if abs(offset.width) > 130 {
-                        // view is transparent
+                        if offset.width < 0 {
+                            // swiping left -> red
+                            feedback.notificationOccurred(.error)
+                        } else {
+                            //                            feedback.notificationOccurred(.success)
+                        }
                         remove?()
                     } else {
-                        withAnimation {
-                            offset = .zero
-                        }
+                        offset = .zero
                     }
                 }
         )
@@ -63,6 +74,8 @@ struct CardView: View {
                     isShowingAnswer.toggle()
                 }
         )
+        .accessibilityAddTraits(.isButton)
+        .animation(.spring(), value: offset)
     }
 }
 

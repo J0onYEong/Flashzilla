@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.accessibilityDifferentiateWithoutColor) var differentWithoutColor
+    @Environment(\.accessibilityVoiceOverEnabled) var isVoiceOverEnabled
     @Environment(\.scenePhase) var scenePhase
     @State private var isActive = true
     @State private var cards = [Card](repeating: Card.instance, count: 10)
@@ -21,6 +22,7 @@ struct ContentView: View {
                 stops: [Gradient.Stop(color: .red, location: 0.0),Gradient.Stop(color: .white, location: 0.3),Gradient.Stop(color: .white, location: 0.7), Gradient.Stop(color: .green, location: 1)]),
             startPoint: .leading, endPoint: .trailing)
             .ignoresSafeArea()
+            .zIndex(0)
             
             VStack {
                 // Timer
@@ -32,7 +34,6 @@ struct ContentView: View {
                         if remainingTime > 0 {
                             remainingTime -= 1
                         }
-
                     }
                 ZStack {
                     ForEach(0..<cards.count, id: \.self) { index in
@@ -41,29 +42,61 @@ struct ContentView: View {
                                 removeCard(at: index)
                             }
                         }
-                            .stacked(at: index, in: cards.count)
+                        .stacked(at: index, in: cards.count)
+                        .allowsHitTesting(isActive && cards.count-1 == index)
+                        .accessibilityHidden(cards.count-1 != index)
+                    }
+                    
+                    if cards.isEmpty {
+                        Button {
+                            resetCards()
+                        } label: {
+                            Image(systemName: "arrow.counterclockwise")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 75, height: 75)
+                                .foregroundColor(.gray.opacity(0.5))
+                        }
                     }
                 }
             }
-            if differentWithoutColor {
+            .zIndex(1)
+            if differentWithoutColor || isVoiceOverEnabled {
                 VStack {
                     Spacer()
                     HStack {
-                        Image(systemName: "xmark.app")
-                            .resizable()
-                            .scaledToFit()
+                        Button {
+                            withAnimation {
+                                removeCard(at: cards.count-1)
+                            }
+                        } label: {
+                            Image(systemName: "xmark.app")
+                                .resizable()
+                                .scaledToFit()
+                        }
+                        .accessibilityLabel("Wrong")
+                        .accessibilityHint("mark your answer as being incorrect")
                         Spacer()
-                        Image(systemName: "checkmark.square")
-                            .resizable()
-                            .scaledToFit()
+                        Button {
+                            withAnimation {
+                                removeCard(at: cards.count-1)
+                            }
+                        } label: {
+                            Image(systemName: "checkmark.square")
+                                .resizable()
+                                .scaledToFit()
+                        }
+                        .accessibilityLabel("Correct")
+                        .accessibilityHint("mark your answer as being correct")
                     }
                     .frame(height: 75)
                     .foregroundColor(.black.opacity(0.5))
                 }
+                .zIndex(2)
             }
         }
         .onChange(of: scenePhase) { _ in
-            if scenePhase == .inactive {
+            if scenePhase == .inactive, !cards.isEmpty {
                 isActive = true
             } else {
                 isActive = false
@@ -73,6 +106,15 @@ struct ContentView: View {
     
     func removeCard(at: Int) {
         cards.remove(at: at)
+        if cards.isEmpty {
+            isActive = false
+        }
+    }
+    
+    func resetCards() {
+        cards = [Card](repeating: Card.instance, count: 10)
+        remainingTime = 100
+        isActive = true
     }
 }
 extension View {
