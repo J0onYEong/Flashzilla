@@ -8,7 +8,8 @@
 
 import Foundation
 
-struct Card: Hashable {
+struct Card: Hashable, Codable {
+    static var key = "cardData"
     var question: String
     var answer: String
     

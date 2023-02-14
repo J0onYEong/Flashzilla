@@ -12,7 +12,8 @@ struct ContentView: View {
     @Environment(\.accessibilityVoiceOverEnabled) var isVoiceOverEnabled
     @Environment(\.scenePhase) var scenePhase
     @State private var isActive = true
-    @State private var cards = [Card](repeating: Card.instance, count: 10)
+    @State private var cards = [Card]()
+    @State private var isShowingEditView = false
     @State private var remainingTime = 100
     let timer = Timer.publish(every: 1, on: .main, in: RunLoop.Mode.common).autoconnect()
     
@@ -48,14 +49,17 @@ struct ContentView: View {
                     }
                     
                     if cards.isEmpty {
-                        Button {
-                            resetCards()
-                        } label: {
-                            Image(systemName: "arrow.counterclockwise")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 75, height: 75)
-                                .foregroundColor(.gray.opacity(0.5))
+                        VStack {
+                            Text("버튼을 눌러도 게임이 시작되지 않으면 카드를 추가해 주세요")
+                            Button {
+                                resetCards()
+                            } label: {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 75, height: 75)
+                                    .foregroundColor(.gray.opacity(0.5))
+                            }
                         }
                     }
                 }
@@ -94,6 +98,19 @@ struct ContentView: View {
                 }
                 .zIndex(2)
             }
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                         isShowingEditView = true
+                    } label: {
+                        Label("Add card", systemImage: "plus.circle")
+                            .foregroundColor(.indigo)
+                    }
+                    .padding()
+                }
+                Spacer()
+            }
         }
         .onChange(of: scenePhase) { _ in
             if scenePhase == .inactive, !cards.isEmpty {
@@ -102,6 +119,8 @@ struct ContentView: View {
                 isActive = false
             }
         }
+        .onAppear(perform: resetCards)
+        .sheet(isPresented: $isShowingEditView, onDismiss: resetCards, content: Editview.init)
     }
     
     func removeCard(at: Int) {
@@ -112,9 +131,21 @@ struct ContentView: View {
     }
     
     func resetCards() {
-        cards = [Card](repeating: Card.instance, count: 10)
         remainingTime = 100
-        isActive = true
+        loadData()
+        isActive = !cards.isEmpty
+    }
+    
+    func loadData() {
+        guard let data = UserDefaults.standard.data(forKey: Card.key) else {
+            print("no matching key")
+            return
+        }
+        guard let decoded = try? JSONDecoder().decode([Card].self, from: data) else {
+            print("error in decoding process in ContentView")
+            return
+        }
+        cards = decoded
     }
 }
 extension View {
