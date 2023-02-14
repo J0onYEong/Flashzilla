@@ -9,6 +9,8 @@ import SwiftUI
 
 
 struct CardView: View {
+    @Environment(\.accessibilityDifferentiateWithoutColor) var differentWithoutColor
+    
     var card: Card
     @State private var isShowingAnswer = false
     @State private var offset = CGSize.zero
@@ -18,8 +20,10 @@ struct CardView: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .fill(.white)
+                .fill(.white.opacity(1-Double(abs(offset.width / 50))))
                 .shadow(radius: 10)
+                .background(RoundedRectangle(cornerRadius: 25, style: .continuous)
+                    .fill(differentWithoutColor ? .white : offset.width < 0 ? .red : .green))
             VStack {
                 Text(card.question)
                     .font(.largeTitle)
@@ -35,22 +39,29 @@ struct CardView: View {
         }
         .frame(width: 450, height: 250)
         .rotationEffect(.degrees(Double(offset.width / 5)))
-        .opacity(2-abs(Double(offset.width / 50)))
-        .offset(CGSize(width: offset.width*5, height: 0))
+        .opacity(2.5-abs(Double(offset.width / 50)))
+        .offset(CGSize(width: offset.width*3, height: 0))
         .gesture(
             DragGesture()
                 .onChanged { value in
                     offset = value.translation
                 }
                 .onEnded { _ in
-                    if abs(offset.width) > 100 {
+                    if abs(offset.width) > 130 {
                         // view is transparent
                         remove?()
                     } else {
-                        offset = .zero
+                        withAnimation {
+                            offset = .zero
+                        }
                     }
                 }
-
+        )
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded { _ in
+                    isShowingAnswer.toggle()
+                }
         )
     }
 }
