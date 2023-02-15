@@ -17,14 +17,16 @@ struct CardView: View {
     @State private var feedback = UINotificationFeedbackGenerator()
     
     var remove: (() -> ())? = nil
-    
+    var append: ((Card) -> ())? = nil
+ 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 25, style: .continuous)
                 .fill(.white.opacity(1-Double(abs(offset.width / 50))))
                 .shadow(radius: 10)
                 .background(RoundedRectangle(cornerRadius: 25, style: .continuous)
-                    .fill(differentWithoutColor ? .white : offset.width < 0 ? .red : .green))
+                    .fill(immediateColor())
+                )
             VStack {
                 if isVoiceOverEnabled {
                     Text(isShowingAnswer ? card.answer : card.question)
@@ -56,13 +58,13 @@ struct CardView: View {
                 }
                 .onEnded { _ in
                     if abs(offset.width) > 130 {
-                        if offset.width < 0 {
-                            // swiping left -> red
-                            feedback.notificationOccurred(.error)
-                        } else {
-                            //                            feedback.notificationOccurred(.success)
-                        }
                         remove?()
+                        if offset.width < 0 {
+                            // haptick occurs when user drag card to failure
+                            feedback.notificationOccurred(.error)
+                            // pushing back a card
+                            append?(card)
+                        }
                     } else {
                         offset = .zero
                     }
@@ -76,6 +78,20 @@ struct CardView: View {
         )
         .accessibilityAddTraits(.isButton)
         .animation(.spring(), value: offset)
+    }
+    
+    func immediateColor() -> Color {
+        if differentWithoutColor {
+            return .white
+        }
+        let offsetWidth = offset.width
+        if offsetWidth < 0 {
+            return .red
+        } else if offsetWidth == 0 {
+            return .white
+        } else {
+            return .green
+        }
     }
 }
 

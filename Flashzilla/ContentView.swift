@@ -21,7 +21,7 @@ struct ContentView: View {
         ZStack {
             LinearGradient(gradient: Gradient(
                 stops: [Gradient.Stop(color: .red, location: 0.0),Gradient.Stop(color: .white, location: 0.3),Gradient.Stop(color: .white, location: 0.7), Gradient.Stop(color: .green, location: 1)]),
-            startPoint: .leading, endPoint: .trailing)
+                           startPoint: .leading, endPoint: .trailing)
             .ignoresSafeArea()
             .zIndex(0)
             
@@ -37,15 +37,14 @@ struct ContentView: View {
                         }
                     }
                 ZStack {
-                    ForEach(0..<cards.count, id: \.self) { index in
-                        CardView(card: cards[index]) {
-                            withAnimation {
-                                removeCard(at: index)
-                            }
-                        }
-                        .stacked(at: index, in: cards.count)
-                        .allowsHitTesting(isActive && cards.count-1 == index)
-                        .accessibilityHidden(cards.count-1 != index)
+                    ForEach(cards) { card in
+                        let index = cardIndex(card)
+                        CardView(card: card) {
+                            withAnimation { removeCard(at: index) }
+                        } append: { card in withAnimation { appendCard(card) }}
+                            .stacked(at: index, in: cards.count)
+                            .allowsHitTesting(isActive && cards.count-1 == index)
+                            .accessibilityHidden(cards.count-1 != index)
                     }
                     
                     if cards.isEmpty {
@@ -102,10 +101,13 @@ struct ContentView: View {
                 HStack {
                     Spacer()
                     Button {
-                         isShowingEditView = true
+                        isShowingEditView = true
                     } label: {
                         Label("Add card", systemImage: "plus.circle")
                             .foregroundColor(.indigo)
+                    }
+                    Button("Test") {
+                        appendCard(Card(question: "Test", answer: ""))
                     }
                     .padding()
                 }
@@ -123,11 +125,25 @@ struct ContentView: View {
         .sheet(isPresented: $isShowingEditView, onDismiss: resetCards, content: Editview.init)
     }
     
+    func cardIndex(_ card: Card) -> Int {
+        for i in 0..<cards.count {
+            if card == cards[i] {
+                return i
+            }
+        }
+        fatalError("can not find index of card")
+    }
+    
     func removeCard(at: Int) {
         cards.remove(at: at)
         if cards.isEmpty {
             isActive = false
         }
+    }
+    
+    func appendCard(_ card: Card) {
+        let newCard = Card(question: card.question, answer: card.answer)
+        cards = [newCard] + cards
     }
     
     func resetCards() {

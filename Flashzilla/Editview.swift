@@ -74,11 +74,8 @@ struct Editview: View {
         }
     }
     
-    func saveData() {
-        guard let encoded = try? JSONEncoder().encode(cards) else {
-            print("error in encoding process")
-            return
-        }
+    func saveData() throws {
+        let encoded = try JSONEncoder().encode(cards)
         UserDefaults.standard.set(encoded, forKey: Card.key)
     }
     
@@ -86,7 +83,13 @@ struct Editview: View {
         let question = self.question.trimmingCharacters(in: .whitespaces)
         let answer = self.answer.trimmingCharacters(in: .whitespaces)
         cards.append(Card(question: question, answer: answer))
-        saveData()
+        do {
+            try saveData()
+            self.question = ""
+            self.answer = ""
+        } catch {
+            print("error in saving process, \(error.localizedDescription)")
+        }
     }
     
     func removeCard(at offset: IndexSet) {
