@@ -9,9 +9,11 @@ import SwiftUI
 
 struct Editview: View {
     @Environment(\.dismiss) var dismiss
+    @ObservedObject var viewModel: ContentViewViewModel
+    // TextField
     @State private var question = ""
     @State private var answer = ""
-    @State private var cards: [Card] = []
+    
     var body: some View {
         NavigationView {
             List {
@@ -39,7 +41,7 @@ struct Editview: View {
                     }
                 }
                 Section {
-                    ForEach(cards, id: \.self) { card in
+                    ForEach(viewModel.cards) { card in
                         VStack(alignment: .leading) {
                             Text(card.question)
                                 .font(.headline)
@@ -57,48 +59,24 @@ struct Editview: View {
                     dismiss()
                 }
             }
-            .onAppear(perform: loadData)
-        }
+        } // viewmModel.cards는 현재 게임에 사용되는 중임으로 저장된 모든카드가 포함되있지 않다 따라서 로드해준다.
+        .onAppear(perform: viewModel.loadData)
     }
     func checkInput() -> Bool {
         return question.count>0 && answer.count>0
     }
-    
-    func loadData() {
-        if let data = UserDefaults.standard.data(forKey: Card.key) {
-            guard let decoded = try? JSONDecoder().decode([Card].self, from: data) else {
-                print("error in decoding process")
-                return
-            }
-            cards = decoded
-        }
-    }
-    
-    func saveData() throws {
-        let encoded = try JSONEncoder().encode(cards)
-        UserDefaults.standard.set(encoded, forKey: Card.key)
-    }
-    
+
     func addCard() {
         let question = self.question.trimmingCharacters(in: .whitespaces)
         let answer = self.answer.trimmingCharacters(in: .whitespaces)
-        cards.append(Card(question: question, answer: answer))
-        do {
-            try saveData()
-            self.question = ""
-            self.answer = ""
-        } catch {
-            print("error in saving process, \(error.localizedDescription)")
-        }
+        viewModel.appendCard(Card(question: question, answer: answer))
+        viewModel.saveData()
+        self.question = ""
+        self.answer = ""
     }
     
     func removeCard(at offset: IndexSet) {
-        cards.remove(atOffsets: offset)
-    }
-}
-
-struct Editview_Previews: PreviewProvider {
-    static var previews: some View {
-        Editview()
+        viewModel.removeCard(at: offset)
+        viewModel.saveData()
     }
 }

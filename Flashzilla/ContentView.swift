@@ -11,11 +11,9 @@ struct ContentView: View {
     @Environment(\.accessibilityDifferentiateWithoutColor) var differentWithoutColor
     @Environment(\.accessibilityVoiceOverEnabled) var isVoiceOverEnabled
     @Environment(\.scenePhase) var scenePhase
-    @State private var isActive = true
-    @State private var cards = [Card]()
+    @StateObject var viewModel = ContentViewViewModel()
+    // two way binding
     @State private var isShowingEditView = false
-    @State private var remainingTime = 100
-    let timer = Timer.publish(every: 1, on: .main, in: RunLoop.Mode.common).autoconnect()
     
     var body: some View {
         ZStack {
@@ -27,31 +25,31 @@ struct ContentView: View {
             
             VStack {
                 // Timer
-                Text("\(remainingTime)")
-                    .onReceive(timer) { _ in
-                        guard isActive else {
+                Text("\(viewModel.remainingTime)")
+                    .onReceive(viewModel.timer) { _ in
+                        guard viewModel.isActive else {
                             return
                         }
-                        if remainingTime > 0 {
-                            remainingTime -= 1
+                        if viewModel.remainingTime > 0 {
+                            viewModel.discountRemainingTime()
                         }
                     }
                 ZStack {
-                    ForEach(cards) { card in
-                        let index = cardIndex(card)
+                    ForEach(viewModel.cards) { card in
+                        let index = viewModel.cardIndex(card)
                         CardView(card: card) {
-                            withAnimation { removeCard(at: index) }
-                        } append: { card in withAnimation { appendCard(card) }}
-                            .stacked(at: index, in: cards.count)
-                            .allowsHitTesting(isActive && cards.count-1 == index)
-                            .accessibilityHidden(cards.count-1 != index)
+                            withAnimation { viewModel.removeCard(at: index) }
+                        } append: { card in withAnimation { viewModel.appendCard(card) }}
+                            .stacked(at: index, in: viewModel.cards.count)
+                            .allowsHitTesting(viewModel.isActive && viewModel.cards.count-1 == index)
+                            .accessibilityHidden(viewModel.cards.count-1 != index)
                     }
                     
-                    if cards.isEmpty {
+                    if viewModel.cards.isEmpty {
                         VStack {
                             Text("버튼을 눌러도 게임이 시작되지 않으면 카드를 추가해 주세요")
                             Button {
-                                resetCards()
+                                viewModel.resetCards()
                             } label: {
                                 Image(systemName: "arrow.counterclockwise")
                                     .resizable()
@@ -70,7 +68,7 @@ struct ContentView: View {
                     HStack {
                         Button {
                             withAnimation {
-                                removeCard(at: cards.count-1)
+                                viewModel.removeFrontCard()
                             }
                         } label: {
                             Image(systemName: "xmark.app")
@@ -82,7 +80,7 @@ struct ContentView: View {
                         Spacer()
                         Button {
                             withAnimation {
-                                removeCard(at: cards.count-1)
+                                viewModel.removeFrontCard()
                             }
                         } label: {
                             Image(systemName: "checkmark.square")
@@ -103,11 +101,8 @@ struct ContentView: View {
                     Button {
                         isShowingEditView = true
                     } label: {
-                        Label("Add card", systemImage: "plus.circle")
+                        Label("Edit card", systemImage: "plusminus.circle")
                             .foregroundColor(.indigo)
-                    }
-                    Button("Test") {
-                        appendCard(Card(question: "Test", answer: ""))
                     }
                     .padding()
                 }
@@ -115,53 +110,12 @@ struct ContentView: View {
             }
         }
         .onChange(of: scenePhase) { _ in
-            if scenePhase == .inactive, !cards.isEmpty {
-                isActive = true
-            } else {
-                isActive = false
-            }
+            viewModel.setIsActive(scenePhase == .inactive && !viewModel.cards.isEmpty)
         }
-        .onAppear(perform: resetCards)
-        .sheet(isPresented: $isShowingEditView, onDismiss: resetCards, content: Editview.init)
-    }
-    
-    func cardIndex(_ card: Card) -> Int {
-        for i in 0..<cards.count {
-            if card == cards[i] {
-                return i
-            }
+        .onAppear(perform: viewModel.resetCards)
+        .sheet(isPresented: $isShowingEditView, onDismiss: viewModel.resetCards) {
+            Editview(viewModel: viewModel)
         }
-        fatalError("can not find index of card")
-    }
-    
-    func removeCard(at: Int) {
-        cards.remove(at: at)
-        if cards.isEmpty {
-            isActive = false
-        }
-    }
-    
-    func appendCard(_ card: Card) {
-        let newCard = Card(question: card.question, answer: card.answer)
-        cards = [newCard] + cards
-    }
-    
-    func resetCards() {
-        remainingTime = 100
-        loadData()
-        isActive = !cards.isEmpty
-    }
-    
-    func loadData() {
-        guard let data = UserDefaults.standard.data(forKey: Card.key) else {
-            print("no matching key")
-            return
-        }
-        guard let decoded = try? JSONDecoder().decode([Card].self, from: data) else {
-            print("error in decoding process in ContentView")
-            return
-        }
-        cards = decoded
     }
 }
 extension View {
